@@ -3,18 +3,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-# vocabulary_size = 8268
-# embedding_dim = 128
-# aspect_dim = 128
-
-vocabulary_size = 10
-embedding_dim = 6  # d
-aspect_dim = 3  # da
-
 
 class Model(nn.Module):
-    def __init__(self):
+    def __init__(self, vocabulary_size, embedding_dim=256, aspect_dim=256, device=None):
         super(Model, self).__init__()
+        if device is None:
+            device = torch.device("cpu")
+        self.device = device
+
+        self.vocabulary_size = vocabulary_size
+        self.embedding_dim = embedding_dim
+        self.aspect_dim = aspect_dim
+
         self.word2vec = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=embedding_dim)
         self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=embedding_dim, batch_first=True)
 
@@ -40,7 +40,7 @@ class Model(nn.Module):
         :return:
         """
         sentences = self.word2vec(sentences)  # b * max_length * d
-        aspect = aspect.unsqueeze(0)
+        aspect = self.word2vec(aspect)
 
         pack_sequence = pack_padded_sequence(sentences, lengths=lengths, batch_first=True)
         pack_hs, (h_n, _) = self.lstm(pack_sequence)
@@ -56,7 +56,7 @@ class Model(nn.Module):
         for length in lengths:
             # shape(max_length, da) (结构和 hs 相同，用 0 补齐)
             weighted_aspect_copy = weighted_aspect.mul(torch.cat(
-                [torch.ones((length, aspect_dim)), torch.zeros((lengths[0] - length, aspect_dim))]
+                [torch.ones((length, self.aspect_dim), device=self.device), torch.zeros((lengths[0] - length, self.aspect_dim), device=self.device)]
             ))
             weighted_aspect_copies_array.append(weighted_aspect_copy.unsqueeze(dim=0))
 
@@ -74,14 +74,14 @@ class Model(nn.Module):
         # shape(b, 1, max_length) * shape(b, max_length, d) => shape(b, 1, d) => shape(b, d)
         r = alpha.matmul(hs).squeeze()
         h_ = torch.tanh(self.linear_for_R(r) + self.linear_for_H(h_n))  # shape(b, d)
-        y = F.softmax(self.linear_for_S(h_), dim=1)  # shape(b, 4)
+        y = F.log_softmax(self.linear_for_S(h_), dim=1)  # shape(b, 4)
 
         return y
 
 
 ## 测试模型使用
 if __name__ == '__main__':
-    model = Model()
+    model = Model(vocabulary_size=10, embedding_dim=6, aspect_dim=3)
 
     model(torch.Tensor([
         [1, 1, 1, 1, 1],
