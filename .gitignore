@@ -1,1 +1,5 @@
 .idea/*
+runs/*
+train.json
+validationset.json
+words.json
