@@ -67,7 +67,7 @@ if __name__ == '__main__':
             pred = output.max(1, keepdim=True)[1]
             correct = pred.eq(target.view_as(pred)).sum().item()
 
-            train_loss, train_accuracy = loss.item(), 100. * correct / len(contents)
+            train_loss, train_accuracy = loss.item(), correct / len(contents)
             if batch_index % 100 == 0:
                 print("Train Epoch: {} [{}/{} ({:.0f})]\tLoss: {}\t, Accuracy: ({:.2f}%)".format(
                     epoch, batch_index * len(data), len(train_loader.dataset),
@@ -75,7 +75,7 @@ if __name__ == '__main__':
                            100. * correct / len(contents)
                 ))
             print("train epoch: {}, batch_index: {}, loss: {}, Accuracy: ({:.2f}%)".format(epoch, batch_index, train_loss,
-                                                                                           train_accuracy))
+                                                                                           100 * train_accuracy))
             writer.add_scalar("train/accuracy", train_accuracy, global_step=globals_index)
             writer.add_scalar("train/loss", train_loss, global_step=globals_index)
             globals_index += 1
@@ -147,7 +147,7 @@ if __name__ == '__main__':
                     print(result)
             F1_ave = sum(map(lambda items: items[1], F1)) / len(F1)
 
-            test_loss /= len(test_loader.dataset)
+            test_loss /= len(test_loader)
 
             print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), F1: {}, F1_AVE: {} \n'
                   .format(test_loss, correct, len(test_loader.dataset),

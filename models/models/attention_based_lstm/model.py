@@ -16,24 +16,27 @@ class Model(nn.Module):
         self.aspect_dim = aspect_dim
 
         self.word2vec = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=embedding_dim)
-        self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=embedding_dim, batch_first=True)
+        self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=embedding_dim, batch_first=True, bidirectional=True, dropout=0.3)
 
+        # self.weight_for_hidden = nn.Parameter(
+        #     torch.Tensor(embedding_dim, embedding_dim).normal_(mean=0.0, std=1))  # shape(d, d)
         self.weight_for_hidden = nn.Parameter(
-            torch.Tensor(embedding_dim, embedding_dim).normal_(mean=0.0, std=1))  # shape(d, d)
+            torch.Tensor(embedding_dim * 2, embedding_dim * 2).normal_(mean=0.0, std=1))  # shape(d, d)
 
         self.weight_for_aspect = nn.Parameter(
             torch.Tensor(aspect_dim, aspect_dim).normal_(mean=0.0, std=1))  # shape(da, da)
 
         self.weight_for_M = nn.Parameter(
-            torch.Tensor(embedding_dim + aspect_dim, 1).normal_(mean=0.0, std=1))  # shape(1, d, da)
+            torch.Tensor(embedding_dim * 2 + aspect_dim, 1).normal_(mean=0.0, std=1))  # shape(d + da, 1)
 
-        self.linear_for_R = nn.Linear(in_features=embedding_dim, out_features=embedding_dim)
-        self.linear_for_H = nn.Linear(in_features=embedding_dim, out_features=embedding_dim)
-        self.linear_for_S = nn.Linear(in_features=embedding_dim, out_features=4)
+        self.linear_for_R = nn.Linear(in_features=embedding_dim * 2, out_features=embedding_dim * 2)
+        self.linear_for_H = nn.Linear(in_features=embedding_dim * 2, out_features=embedding_dim * 2)
+        self.linear_for_S = nn.Linear(in_features=embedding_dim * 2, out_features=4)
 
     def forward(self, sentences, lengths, aspect):
         """
 
+        d = 2 * embedding_dim
         :param sentences: shape(b * max_length)
         :param lengths:  shape(b,)
         :param aspect: shape(da,)
@@ -44,7 +47,10 @@ class Model(nn.Module):
 
         pack_sequence = pack_padded_sequence(sentences, lengths=lengths, batch_first=True)
         pack_hs, (h_n, _) = self.lstm(pack_sequence)
-        h_n = h_n.squeeze()
+        h_n = torch.transpose(h_n, 0, 1)
+        h_n = torch.reshape(h_n, (h_n.shape[0], -1))
+
+        # h_n = h_n.squeeze()
         # hs: shape(b, max_length, d); b_n : shape(b, d)
         hs, lengths = pad_packed_sequence(pack_hs, batch_first=True)
 
@@ -56,7 +62,8 @@ class Model(nn.Module):
         for length in lengths:
             # shape(max_length, da) (结构和 hs 相同，用 0 补齐)
             weighted_aspect_copy = weighted_aspect.mul(torch.cat(
-                [torch.ones((length, self.aspect_dim), device=self.device), torch.zeros((lengths[0] - length, self.aspect_dim), device=self.device)]
+                [torch.ones((length, self.aspect_dim), device=self.device),
+                 torch.zeros((lengths[0] - length, self.aspect_dim), device=self.device)]
             ))
             weighted_aspect_copies_array.append(weighted_aspect_copy.unsqueeze(dim=0))
 
@@ -81,10 +88,10 @@ class Model(nn.Module):
 
 ## 测试模型使用
 if __name__ == '__main__':
-    model = Model(vocabulary_size=10, embedding_dim=6, aspect_dim=3)
+    model = Model(vocabulary_size=10, embedding_dim=6, aspect_dim=6)
 
     model(torch.Tensor([
         [1, 1, 1, 1, 1],
         [2, 2, 2, 2, 0],
         [3, 3, 3, 0, 0],
-        [4, 4, 0, 0, 0]]).long(), torch.Tensor([5, 4, 3, 2]).long(), torch.Tensor([3, 3, 3]))
+        [4, 4, 0, 0, 0]]).long(), torch.Tensor([5, 4, 3, 2]).long(), torch.Tensor([3]).long())
