@@ -5,7 +5,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 class Model(nn.Module):
-    def __init__(self, vocabulary_size, embedding_dim=256, aspect_dim=256, device=None):
+    def __init__(self, vocabulary_size, embedding_dim=256, aspect_dim=256, device=None, class_num=3):
         super(Model, self).__init__()
         if device is None:
             device = torch.device("cpu")
@@ -16,7 +16,9 @@ class Model(nn.Module):
         self.aspect_dim = aspect_dim
 
         self.word2vec = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=embedding_dim)
-        self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=embedding_dim, batch_first=True, bidirectional=True, dropout=0.3)
+        self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=embedding_dim, batch_first=True, bidirectional=True)
+
+        self.dropout = nn.Dropout2d(0.3)
 
         # self.weight_for_hidden = nn.Parameter(
         #     torch.Tensor(embedding_dim, embedding_dim).normal_(mean=0.0, std=1))  # shape(d, d)
@@ -31,7 +33,7 @@ class Model(nn.Module):
 
         self.linear_for_R = nn.Linear(in_features=embedding_dim * 2, out_features=embedding_dim * 2)
         self.linear_for_H = nn.Linear(in_features=embedding_dim * 2, out_features=embedding_dim * 2)
-        self.linear_for_S = nn.Linear(in_features=embedding_dim * 2, out_features=4)
+        self.linear_for_S = nn.Linear(in_features=embedding_dim * 2, out_features=class_num)
 
     def forward(self, sentences, lengths, aspect):
         """
@@ -80,7 +82,7 @@ class Model(nn.Module):
 
         # shape(b, 1, max_length) * shape(b, max_length, d) => shape(b, 1, d) => shape(b, d)
         r = alpha.matmul(hs).squeeze()
-        h_ = torch.tanh(self.linear_for_R(r) + self.linear_for_H(h_n))  # shape(b, d)
+        h_ = F.relu(self.linear_for_R(r) + self.linear_for_H(h_n))  # shape(b, d)
         y = F.log_softmax(self.linear_for_S(h_), dim=1)  # shape(b, 4)
 
         return y

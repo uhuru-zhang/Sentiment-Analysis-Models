@@ -10,7 +10,7 @@ from models.models.attention_based_lstm.model import Model
 
 from tensorboardX import SummaryWriter
 
-class_num = 4
+class_num = 3
 
 if __name__ == '__main__':
     writer = SummaryWriter()
@@ -24,7 +24,7 @@ if __name__ == '__main__':
                                shuffle=True, num_workers=32)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = Model(vocabulary_size=340166, device=device).to(device)
+    model = Model(vocabulary_size=340166, device=device, class_num=class_num).to(device)
 
     # if torch.cuda.device_count() > 1:
     #     model = nn.DataParallel(model)
@@ -52,7 +52,7 @@ if __name__ == '__main__':
             data = torch.tensor(content_indexes_padding, dtype=torch.long)
             data = torch.index_select(data, dim=0, index=torch.Tensor(indexes).long()).to(device)
 
-            target = torch.tensor([environment_cleaness + 2 for environment_cleaness in aspect_level])
+            target = torch.tensor([environment_cleaness + class_num - 2 for environment_cleaness in aspect_level])
             target = torch.index_select(target, dim=0, index=torch.Tensor(indexes).long()).to(device)
 
             aspect = torch.Tensor([170]).long().to(device)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
                 data = torch.tensor(content_indexes_padding, dtype=torch.long)
                 data = torch.index_select(data, dim=0, index=torch.Tensor(indexes).long()).to(device)
 
-                target = torch.tensor([environment_cleaness + 2 for environment_cleaness in aspect_level])
+                target = torch.tensor([environment_cleaness + class_num - 2 for environment_cleaness in aspect_level])
                 target = torch.index_select(target, dim=0, index=torch.Tensor(indexes).long()).to(device)
                 aspect = torch.Tensor([170]).long().to(device)
 
