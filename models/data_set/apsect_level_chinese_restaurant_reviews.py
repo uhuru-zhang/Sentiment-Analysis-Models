@@ -19,8 +19,8 @@ class TextDataSet(Dataset):
             for column in columns:
                 line.append(dict_datas[str(i)][column])
 
-            # if int(line[1]) == -2:
-            #     continue
+            if int(line[1]) == -2:
+                continue
             self.datas.append(line)
 
     def __getitem__(self, index):
