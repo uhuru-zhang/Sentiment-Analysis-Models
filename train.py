@@ -5,8 +5,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data as D
 
-from models.data_set.apsect_level_chinese_restaurant_reviews import TextDataSet
-from models.models.attention_based_lstm.model import Model
+from src.data_set.apsect_level_chinese_restaurant_reviews import TextDataSet
+from src.aspect_level_sentiment_analysis.attention_based_lstm.model import Model
 
 from tensorboardX import SummaryWriter
 

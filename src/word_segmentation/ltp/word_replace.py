@@ -4,7 +4,7 @@ from pyltp import Segmentor
 import pandas as pd
 from pandas._libs import json
 
-from models.const import DATA_SET_DIR, LTP_DATA_DIR
+from src.const import DATA_SET_DIR, LTP_DATA_DIR
 import numpy as np
 
 train_file_path = "trainingset/sentiment_analysis_trainingset.csv"
@@ -15,10 +15,14 @@ def main():
     cws_model_path = os.path.join(LTP_DATA_DIR, "cws.model")  # 分词模型路径，模型名称为`cws.model`
     segmentor = Segmentor()  # 初始化实例
     segmentor.load(cws_model_path)  # 加载模型
-    train_file = os.path.join(DATA_SET_DIR, train_file_path)
-    # validationset_file = os.path.join(DATA_SET_DIR, validationset_file_path)
+    # train_file = os.path.join(DATA_SET_DIR, train_file_path)
+    words_dict_json = open("words.json", "r")
+    words_dict = json.loads(words_dict_json.readline())
+    print(words_dict["味道"])
 
-    lines = pd.read_csv(train_file,
+    validationset_file = os.path.join(DATA_SET_DIR, validationset_file_path)
+
+    lines = pd.read_csv(validationset_file,
                         header=0,
                         dtype={"id": np.int, "content": np.str, "location_traffic_convenience": np.int,
                                "location_distance_from_business_district": np.int,
@@ -32,21 +36,27 @@ def main():
                                "dish_recommendation": np.int, "others_overall_experience": np.int,
                                "others_willing_to_consume_again": np.int
                                },
-                        index_col="id",
-                        usecols=["id", "content"])
+                        index_col="id")
 
-    lines = lines["content"]
-    json_file = open("words.json", "r")
-    word_dict = json.loads(json_file.readline())
-    for line in lines:
-        words = segmentor.segment(line[1 if line[0] == "\"" else 0:
-                                       -1 if line[-1] == "\"" else len(line)])
-        regist_words(word_dict, words)
+    lines_dict = {}
+    for index in lines.index:
+        line = lines.loc[index]
+        line_dict = {}
+        for column in line.index:
+            line_dict[column] = line[column]
 
-    word_dict_json = json.dumps(word_dict)
+        line_dict["content"] = line["content"][1 if line["content"][0] == "\"" else 0:
+                                               -1 if line["content"][-1] == "\"" else len(line["content"])]
 
-    json_file = open("words.json", "w")
-    json_file.write(word_dict_json)
+        line_dict["content_indexes"] = " ".join(
+            [str(words_dict[word]["index"]) for word in segmentor.segment(line_dict["content"])])
+
+        lines_dict[index] = line_dict
+
+    line_dict_json = json.dumps(lines_dict)
+
+    json_file = open("validationset.json", "w")
+    json_file.write(line_dict_json)
     json_file.flush()
     json_file.close()
 
@@ -65,3 +75,4 @@ def regist_words(word_dict, words):
 
 if __name__ == '__main__':
     main()
+
